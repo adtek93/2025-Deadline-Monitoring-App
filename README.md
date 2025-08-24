@@ -61,3 +61,5 @@ Triggers → Add Trigger
 
 <img width="1526" height="536" alt="image" src="https://github.com/user-attachments/assets/05f37c94-1384-46fe-863e-dbd94c3983b7" />
 <img width="1516" height="810" alt="image" src="https://github.com/user-attachments/assets/68aa70cb-a71f-4a07-84e5-930bfe628c26" />
+<img width="715" height="460" alt="image" src="https://github.com/user-attachments/assets/ff0c8271-4da6-4a73-804d-9023c6d23765" />
+

@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Deadline Monitoring Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<style>
+  body {
+    font-family: 'Inter', sans-serif;
+    background-color: #f3f4f6;
+    margin: 0;
+    padding: 0;
+    color: #1f2937;
+  }
+  .fade-in {
+    animation: fadeIn 0.5s ease-in;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  #configTable {
+    max-height: 60vh;
+    overflow-y: auto;
+    overflow-x: auto;
+    width: 100%;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    position: relative;
+  }
+  #configTable table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: fixed;
+  }
+  #configTable th,
+  #configTable td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #e5e7eb;
+    border-right: 1px solid #e5e7eb;
+    white-space: nowrap;
+    font-size: 0.875rem;
+  }
+  #configTable th:last-child,
+  #configTable td:last-child {
+    border-right: none;
+  }
+  #configTable thead {
+    background-color: #0a3852;
+    color: #ffffff;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+  }
+  #configTable tbody tr:hover td:nth-child(18) {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    transition: box-shadow 0.3s ease;
+  }
+  #configTable tbody tr td {
+    background-color: #ffffff;
+  }
+  /* Cột 0 (STT) */
+  #configTable th:nth-child(1),
+  #configTable td:nth-child(1) {
+    position: sticky;
+    left: 0;
+    z-index: 10;
+    background-color: #ffffff;
+    box-shadow: 3px 0 5px rgba(0, 0, 0, 0.1);
+    width: 60px;
+  }
+  #configTable th:nth-child(1) {
+    background-color: #0a3852;
+    color: #ffffff;
+  }
+  /* Cột 1 (File ID) - ẩn */
+  #configTable th:nth-child(2),
+  #configTable td:nth-child(2) {
+    display: none;
+  }
+  /* Cột 2 (Project Name) */
+  #configTable th:nth-child(3),
+  #configTable td:nth-child(3) {
+    position: sticky;
+    left: 60px; /* Độ rộng của cột 0 */
+    z-index: 10;
+    background-color: #ffffff;
+    box-shadow: 3px 0 5px rgba(0, 0, 0, 0.1);
+    width: 550px;
+  }
+  #configTable th:nth-child(3) {
+    background-color: #0a3852;
+    color: #ffffff;
+  }
+  /* Cột 18 (Actions) */
+  #configTable th:nth-child(18),
+  #configTable td:nth-child(18) {
+    position: sticky;
+    right: 0;
+    z-index: 2;
+    background: #ffffff;
+    box-shadow: -3px 0 5px rgba(0, 0, 0, 0.1);
+    width: 200px;
+  }
+  #configTable th:nth-child(18) {
+    background-color: #0a3852;
+    color: #ffffff;
+  }
+  #modal,
+  #alertModal {
+    z-index: 30;
+  }
+  #modal .bg-white,
+  #alertModal .bg-white {
+    padding: 20px;
+    width: 700px;
+    height: auto;
+    max-height: 90vh;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+  .check-icon {
+    color: #10b981;
+    font-size: 24px;
+  }
+  .required::after {
+    content: " *";
+    color: #ef4444;
+  }
+  .btn-primary {
+    background-color: #008000;
+    color: #ffffff;
+    padding: 4px 8px;
+    border-radius: 0.375rem;
+    transition: background-color 0.3s;
+  }
+  .btn-primary:hover {
+    background-color: #006400;
+  }
+  .btn-deactivate {
+    background-color: #ef4444;
+    color: #ffffff;
+    padding: 4px 8px;
+    border-radius: 0.375rem;
+    transition: background-color 0.3s;
+  }
+  .btn-deactivate:hover {
+    background-color: #dc2626;
+  }
+  #loading {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 50;
+    justify-content: center;
+    align-items: center;
+  }
+  #loading .animate-spin {
+    border-top-color: #008000;
+  }
+  #notification {
+    border-radius: 0.375rem;
+  }
+  #alertContent p {
+    padding: 8px;
+    margin-bottom: 8px;
+    border-radius: 0.375rem;
+  }
+  /* Độ rộng các cột khác */
+  #configTable th:nth-child(4),
+  #configTable td:nth-child(4) {
+    width: 150px;
+  }
+  #configTable th:nth-child(5),
+  #configTable td:nth-child(5) {
+    width: 115px;
+  }
+  #configTable th:nth-child(6),
+  #configTable td:nth-child(6) {
+    width: 110px;
+  }
+  #configTable th:nth-child(7),
+  #configTable td:nth-child(7) {
+    width: 110px;
+  }
+  #configTable th:nth-child(8),
+  #configTable td:nth-child(8) {
+    width: 110px;
+  }
+  #configTable th:nth-child(9),
+  #configTable td:nth-child(9) {
+    display: none;
+  }
+  #configTable th:nth-child(10),
+  #configTable td:nth-child(10) {
+    width: 110px;
+  }
+  #configTable th:nth-child(11),
+  #configTable td:nth-child(11) {
+    width: 110px;
+  }
+  #configTable th:nth-child(12),
+  #configTable td:nth-child(12) {
+    width: 110px;
+  }
+  #configTable th:nth-child(13),
+  #configTable td:nth-child(13) {
+    width: 110px;
+  }
+  #configTable th:nth-child(14),
+  #configTable td:nth-child(14) {
+    display: none;
+  }
+  #configTable th:nth-child(15),
+  #configTable td:nth-child(15) {
+    width: 250px;
+  }
+  #configTable th:nth-child(16),
+  #configTable td:nth-child(16) {
+    width: 110px;
+  }
+  #configTable th:nth-child(17),
+  #configTable td:nth-child(17) {
+    width: 110px;
+  }
+  /* Tùy chỉnh form input */
+  #modal input,
+  #modal select {
+    width: 100%;
+    padding: 6px;
+    font-size: 0.75rem;
+    line-height: 1rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.25rem;
+    box-sizing: border-box;
+  }
+  #modal label {
+    font-size: 0.75rem;
+    margin-bottom: 4px;
+    display: block;
+  }
+  #modal .grid-cols-2,
+  #modal .grid-cols-4 {
+    gap: 8px;
+  }
+  #modal .grid-cols-4 > div {
+    margin-bottom: 0;
+  }
+  /* Điều chỉnh layout cho form */
+  #configForm {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    padding: 10px;
+    height: 100%;
+    overflow: hidden;
+  }
+  #configForm .col-span-2 {
+    grid-column: span 2;
+  }
+  #configForm .col-span-1 {
+    grid-column: span 1;
+  }
+  #configForm .grid-cols-4 {
+    grid-column: span 2;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+  #configForm .flex {
+    justify-content: flex-end;
+    gap: 8px;
+  }
+</style>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col">
+  <main class="container mx-auto p-6 flex-grow">
+    <div class="mb-6 flex justify-between items-center">
+      <h2 class="text-xl font-semibold text-[#0a3852]">Project Plan & Alert Management</h2>
+      <div class="space-x-2">
+        <button id="addBtn" class="btn-primary">Add New Alert</button>
+        <button id="refreshBtn" class="btn-primary">Refresh Data</button>
+      </div>
+    </div>
+    <div class="mb-6">
+      <input id="searchInput" type="text" placeholder="Search tasks, project names, or file IDs..." class="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-#0a3852">
+    </div>
+    <div id="loading" class="hidden fixed inset-0 flex justify-center items-center bg-white/60 z-[9999]">
+      <div class="h-16 w-16 border-4 border-[#0a3852]/30 border-t-[#0a3852] rounded-full animate-[spin_0.7s_linear_infinite]"></div>
+    </div>
+    <div id="notification" class="hidden fixed top-6 right-6 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg" role="alert">
+      <span id="notificationMsg"></span>
+    </div>
+    <div id="configTable" class="bg-white rounded-lg">
+      <table class="w-full">
+        <thead class="bg-#0a3852 text-white">
+          <tr>
+            <th class="p-3 text-left font-medium">No.</th>
+            <th class="p-3 text-left font-medium">File ID</th>
+            <th class="p-3 text-left font-medium">Project Name</th>
+            <th class="p-3 text-left font-medium">Sheet Name</th>
+            <th class="p-3 text-left font-medium">Task Name Col.</th>
+            <th class="p-3 text-left font-medium">Start Date Col.</th>
+            <th class="p-3 text-left font-medium">End Date Col.</th>
+            <th class="p-3 text-left font-medium">Status Col.</th>
+            <th class="p-3 text-left font-medium">Recipients</th>
+            <th class="p-3 text-left font-medium">Send Method</th>
+            <th class="p-3 text-left font-medium">Max Alerts</th>
+            <th class="p-3 text-left font-medium">Before Days</th>
+            <th class="p-3 text-left font-medium">After Days</th>
+            <th class="p-3 text-left font-medium">Conditions</th>
+            <th class="p-3 text-left font-medium">Status</th>
+            <th class="p-3 text-left font-medium">Active</th>
+            <th class="p-3 text-left font-medium">Link</th>
+            <th class="p-3 text-left font-medium">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="configBody"></tbody>
+      </table>
+    </div>
+  </main>
+  <!-- Modal for Add/Edit -->
+  <div id="modal" class="hidden fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center">
+    <div class="bg-white p-6 rounded-lg shadow-lg">
+      <h2 id="modalTitle" class="text-xl font-semibold mb-4 text-gray-800"></h2>
+      <form id="configForm" class="grid grid-cols-2 gap-2">
+        <input type="hidden" id="rowIndex">
+        <div class="col-span-2 mb-2">
+          <label class="block text-sm font-medium text-gray-700 required">Google Sheet Link:</label>
+          <input id="link" class="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-#0a3852" required placeholder="Nhập link Google Sheet, cần share quyền view cho haona@basebs.com">
+        </div>
+        <div class="col-span-2 mb-2">
+          <label class="block text-sm font-medium text-gray-700">File ID (auto-filled):</label>
+          <input id="fileId" class="w-full p-2 border border-gray-300 rounded-lg bg-gray-100" readonly>
+        </div>
+        <div class="col-span-2 mb-2">
+          <label class="block text-sm font-medium text-gray-700 required">Project Name:</label>
+          <input id="projectName" class="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-#0a3852" required placeholder="Nhập tên dự án">
+        </div>
+        <div class="col-span-1 mb-2">
+          <label class="block text-sm font-medium text-gray-700 required">Sheet Name:</label>
+          <input id="sheetName" class="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-#0a3852" required placeholder="Plan tại sheet 'Plan' điền Plan"...>
+        </div>
+        <div class="col-span-1 mb-2">
+          <label class="block text-sm font-medium text-gray-700">Recipients:</label>
+          <input id="recipients" class="w-full p-2 border border-gray-300 rounded-lg bg-gray-100 focus:outline-none focus:ring-2 focus:ring-#0a3852" value=",-1002740399060" readonly>
+        </div>
+        <div class="col-span-2 mb-2 grid grid-cols-4 gap-2">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 required">Task Name Col.:</label>
+            <input id="taskNameCol" class="uppercase-input w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-#0a3852" required maxlength="1" pattern="[A-Z]" placeholder="TaskName cột B điền B...">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 required">Start Date Col.:</label>
+            <input id="startCol" class="uppercase-input w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-#0a3852" required maxlength="1" pattern="[A-Z]" placeholder="StartDate cột C điền C...">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 required">End Date Col.:</label>
+            <input id="endCol" class="uppercase-input w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-#0a3852" required maxlength="1" pattern="[A-Z]" placeholder="EndDate cột D điền D...">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 required">Status Col.:</label>
+            <input id="statusCol" class="uppercase-input w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-#0a3852" required maxlength="1" pattern="[A-Z]" placeholder="Status cột E điền E...">
+          </div>
+        </div>
+        <div class="col-span-1 mb-2">
+          <label class="block text-sm font-medium text-gray-700">Send Method:</label>
+<select 
+  id="sendMethod" 
+  name="sendMethod"
+  class="w-full p-2 border border-gray-300 rounded-lg opacity-50 cursor-not-allowed pointer-events-none"
+>
+  <option value="telegram" selected>Telegram</option>
+  <option value="email">Email</option>
+  <option value="both">Both</option>
+</select>
+        </div>
+        <div class="col-span-1 mb-2">
+          <label class="block text-sm font-medium text-gray-700">Max Alerts:</label>
+          <input id="maxAlerts" type="number" class="w-full p-2 border border-gray-300 rounded-lg bg-gray-100 focus:outline-none focus:ring-2 focus:ring-#0a3852" readonly>
+        </div>
+        <div class="col-span-1 mb-2">
+          <label class="block text-sm font-medium text-gray-700">Before Days:</label>
+          <input id="beforeDays" type="number" class="w-full p-2 border border-gray-300 rounded-lg bg-gray-100 focus:outline-none focus:ring-2 focus:ring-#0a3852" value="1" readonly>
+        </div>
+        <div class="col-span-1 mb-2">
+          <label class="block text-sm font-medium text-gray-700">After Days:</label>
+          <input id="afterDays" type="number" class="w-full p-2 border border-gray-300 rounded-lg bg-gray-100 focus:outline-none focus:ring-2 focus:ring-#0a3852" readonly>
+        </div>
+        <div class="col-span-2 mb-2">
+          <label class="block text-sm font-medium text-gray-700">Conditions:</label>
+          <input id="conditions" class="w-full p-2 border border-gray-300 rounded-lg bg-gray-100 focus:outline-none focus:ring-2 focus:ring-#0a3852" readonly>
+        </div>
+        <div class="col-span-2 flex justify-end space-x-2">
+          <button type="button" id="cancelBtn" class="btn-primary">Cancel</button>
+          <button type="submit" class="btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <!-- Alert Modal -->
+  <div id="alertModal" class="hidden fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center">
+    <div class="bg-white p-6 rounded-lg shadow-lg w-1/2 max-h-80vh overflow-y-auto">
+      <h2 class="text-xl font-semibold mb-4 text-gray-800">Task Alerts</h2>
+      <div id="alertContent"></div>
+      <div class="mt-4 flex justify-end">
+        <button id="closeAlertModal" class="btn-primary">Close</button>
+      </div>
+    </div>
+  </div>
+  <footer class="bg-white text-[#0a3852] p-4 text-center mt-6">
+    <p>
+      &copy; 2025 Deadline Monitoring 
+      <a href="https://docs.google.com/spreadsheets/d/1qC06gXySTb30le0qG0cNMumhvJpZFFb_Bnm1YpU-Yr4/edit?gid=1901042520#gid=1901042520" 
+        target="_blank" 
+         class="hover:text-blue-600">
+        App
+      </a>
+    </p>
+  </footer>
+
+  <script>
+    let isLoading = false;
+
+    function showLoading(show) {
+      isLoading = show;
+      const loading = document.getElementById('loading');
+      loading.style.display = show ? 'flex' : 'none';
+    }
+
+    function showNotification(msg, type = 'success') {
+      const noti = document.getElementById('notification');
+      const notiMsg = document.getElementById('notificationMsg');
+      notiMsg.textContent = msg;
+      noti.classList.remove('hidden', 'bg-green-100', 'border-green-400', 'text-green-700', 'bg-red-100', 'border-red-400', 'text-red-700');
+      if (type === 'error') {
+        noti.classList.add('bg-red-100', 'border-red-400', 'text-red-700');
+      } else {
+        noti.classList.add('bg-green-100', 'border-green-400', 'text-green-700');
+      }
+      noti.classList.remove('hidden');
+      setTimeout(() => noti.classList.add('hidden'), 3000);
+    }
+
+    async function fetchConfigData() {
+      if (isLoading) return;
+      showLoading(true);
+      try {
+        await google.script.run.withSuccessHandler(data => {
+          // console.log('Fetched data:', data.configData);
+          renderConfigTable(data.configData);
+          showLoading(false);
+        }).withFailureHandler(err => {
+          showLoading(false);
+          showNotification('Error fetching data: ' + err.message, 'error');
+          console.error('Fetch error:', err);
+        }).getConfigData();
+      } catch (error) {
+        showLoading(false);
+        showNotification('Error: ' + error.message, 'error');
+        console.error('Catch error:', error);
+      }
+    }
+
+    window.addEventListener('load', fetchConfigData);
+
+    function renderConfigTable(data) {
+      const tbody = document.getElementById('configBody');
+      tbody.innerHTML = '';
+      data.forEach((row, index) => {
+        const tr = document.createElement('tr');
+        tr.className = 'fade-in border-b';
+        tr.dataset.rowIndex = index;
+        tr.innerHTML = `
+          <td class="p-3">${row[0] || ''}</td>
+          <td class="p-3">
+            <button onclick="copyToClipboard('${row[1] || ''}')" class="btn-primary px-2 py-1 text-sm">Copy ID</button>
+          </td>
+          <td class="p-3">${row[2] || ''}</td>
+          <td class="p-3">${row[3] || ''}</td>
+          <td class="p-3">${row[4] || ''}</td>
+          <td class="p-3">${row[5] || ''}</td>
+          <td class="p-3">${row[6] || ''}</td>
+          <td class="p-3">${row[7] || ''}</td>
+          <td class="p-3">${row[8] || ''}</td>
+          <td class="p-3">${row[9] || ''}</td>
+          <td class="p-3">${row[10] || ''}</td>
+          <td class="p-3">${row[11] || ''}</td>
+          <td class="p-3">${row[12] || ''}</td>
+          <td class="p-3">${row[13] || ''}</td>
+          <td class="p-3">${row[14] || ''}</td>
+          <td class="p-3">${row[15] || ''}</td>
+          <td class="p-3"><a href="${row[16] || ''}" target="_blank" class="text-blue-600 hover:underline text-sm">${row[16] ? 'View' : ''}</a></td>
+          <td class="p-3 action-column">
+            <button onclick="editConfig(${index})" class="btn-primary px-2 py-1 text-sm mr-1">Edit</button>
+            <button onclick="toggleActive(${index}, '${row[15] || 'No'}')" class="btn-${(row[15] || 'No') === 'Yes' ? 'deactivate' : 'primary'} px-2 py-1 text-sm mr-1">${(row[15] || 'No') === 'Yes' ? 'Deactivate' : 'Activate'}</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function copyToClipboard(text) {
+      if (isLoading) return;
+      showLoading(true);
+      navigator.clipboard.writeText(text).then(() => {
+        showLoading(false);
+        showNotification('Copied to clipboard!');
+      }).catch(err => {
+        showLoading(false);
+        showNotification('Failed to copy: ' + err.message, 'error');
+      });
+    }
+
+    function extractFileId(link) {
+      const match = link.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+      return match ? match[1] : '';
+    }
+
+    function showModal(title, row = null) {
+      if (isLoading) return;
+      showLoading(true);
+      const modalTitle = document.getElementById('modalTitle');
+      const rowIndex = document.getElementById('rowIndex');
+      const linkInput = document.getElementById('link');
+      const fileIdInput = document.getElementById('fileId');
+      const projectNameInput = document.getElementById('projectName');
+      const sheetNameInput = document.getElementById('sheetName');
+      const taskNameColInput = document.getElementById('taskNameCol');
+      const startColInput = document.getElementById('startCol');
+      const endColInput = document.getElementById('endCol');
+      const statusColInput = document.getElementById('statusCol');
+      const recipientsInput = document.getElementById('recipients');
+      const sendMethodSelect = document.getElementById('sendMethod');
+      const maxAlertsInput = document.getElementById('maxAlerts');
+      const beforeDaysInput = document.getElementById('beforeDays');
+      const afterDaysInput = document.getElementById('afterDays');
+      const conditionsInput = document.getElementById('conditions');
+
+      modalTitle.textContent = title;
+      rowIndex.value = row ? row.dataset.rowIndex : '';
+      linkInput.value = row ? (row.cells[16].querySelector('a') ? row.cells[16].querySelector('a').href : '') : '';
+      fileIdInput.value = row ? (row.cells[1].querySelector('button') ? row.cells[1].querySelector('button').getAttribute('onclick').match(/'(.*?)'/)[1] : '') : '';
+      projectNameInput.value = row ? row.cells[2].textContent : '';
+      sheetNameInput.value = row ? row.cells[3].textContent : '';
+      taskNameColInput.value = row ? row.cells[4].textContent : '';
+      startColInput.value = row ? row.cells[5].textContent : '';
+      endColInput.value = row ? row.cells[6].textContent : '';
+      statusColInput.value = row ? row.cells[7].textContent : '';
+      recipientsInput.value = row ? row.cells[8].textContent : ',-1002740399060';
+      recipientsInput.type = "password";
+      sendMethodSelect.value = row ? row.cells[9].textContent : 'telegram';
+      maxAlertsInput.value = row ? row.cells[10].textContent : '';
+      beforeDaysInput.value = row ? row.cells[11].textContent : '1';
+      afterDaysInput.value = row ? row.cells[12].textContent : '';
+      conditionsInput.value = row ? row.cells[13].textContent : '';
+      showLoading(false);
+      document.getElementById('modal').classList.remove('hidden');
+    }
+
+    function hideModal() {
+      document.getElementById('modal').classList.add('hidden');
+    }
+
+    function editConfig(index) {
+      const row = document.querySelector(`tr[data-row-index="${index}"]`);
+      showModal('Edit Alert', row);
+    }
+
+    function toggleActive(index, currentActive) {
+      if (isLoading) return;
+      showLoading(true);
+      google.script.run.withSuccessHandler(() => {
+        showLoading(false);
+        showNotification('Active status updated!');
+        fetchConfigData();
+      }).withFailureHandler(err => {
+        showLoading(false);
+        showNotification('Error: ' + err.message, 'error');
+      }).toggleActive(index);
+    }
+
+    document.getElementById('link').addEventListener('input', (e) => {
+      document.getElementById('fileId').value = extractFileId(e.target.value);
+    });
+
+    document.getElementById('addBtn').addEventListener('click', () => showModal('Add New Alert'));
+
+    document.getElementById('cancelBtn').addEventListener('click', hideModal);
+
+    document.getElementById('configForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (isLoading) return;
+      showLoading(true);
+      const rowIndex = document.getElementById('rowIndex').value;
+      const currentRow = rowIndex !== '' ? document.getElementById('configBody').rows[rowIndex] : null;
+      const data = {
+        fileId: document.getElementById('fileId').value,
+        projectName: document.getElementById('projectName').value,
+        sheetName: document.getElementById('sheetName').value,
+        taskNameCol: document.getElementById('taskNameCol').value.toUpperCase(),
+        startCol: document.getElementById('startCol').value.toUpperCase(),
+        endCol: document.getElementById('endCol').value.toUpperCase(),
+        statusCol: document.getElementById('statusCol').value.toUpperCase(),
+        recipients: document.getElementById('recipients').value,
+        sendMethod: document.getElementById('sendMethod').value,
+        maxAlerts: document.getElementById('maxAlerts').value,
+        beforeDays: document.getElementById('beforeDays').value,
+        afterDays: document.getElementById('afterDays').value,
+        conditions: document.getElementById('conditions').value,
+        link: document.getElementById('link').value,
+        active: currentRow ? currentRow.cells[15].textContent : (rowIndex === '' ? 'No' : 'Yes')
+      };
+      // console.log('Sending data to updateConfig:', data);
+      if (rowIndex === '') {
+        google.script.run.withSuccessHandler(() => {
+          showLoading(false);
+          showNotification('New alert added!');
+          hideModal();
+          fetchConfigData();
+        }).withFailureHandler(err => {
+          showLoading(false);
+          showNotification('Error: ' + err.message, 'error');
+          console.error('Add error:', err);
+        }).addConfig(data);
+      } else {
+        google.script.run.withSuccessHandler(() => {
+          showLoading(false);
+          showNotification('Alert updated!');
+          hideModal();
+          fetchConfigData();
+        }).withFailureHandler(err => {
+          showLoading(false);
+          showNotification('Error: ' + err.message, 'error');
+          console.error('Update error:', err);
+        }).updateConfig(parseInt(rowIndex), data);
+      }
+    });
+
+    document.getElementById('refreshBtn').addEventListener('click', fetchConfigData);
+
+    document.getElementById('searchInput').addEventListener('input', (e) => {
+      const searchTerm = e.target.value.toLowerCase();
+      const rows = document.querySelectorAll('#configBody tr');
+      rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(searchTerm) ? '' : 'none';
+      });
+    });
+
+    function checkAlerts(index) {
+      if (isLoading) return;
+      showLoading(true);
+      google.script.run.withSuccessHandler(alerts => {
+        showLoading(false);
+        const alertContent = document.getElementById('alertContent');
+        alertContent.innerHTML = '';
+        if (alerts.length === 0) {
+          alertContent.innerHTML = '<p class="text-center">All Done <span class="check-icon">✓</span></p>';
+        } else {
+          // Giả định alerts là mảng các đối tượng chứa task, end date, status
+          alerts.forEach(alert => {
+            const p = document.createElement('p');
+            let text = '';
+            if (typeof alert === 'object' && alert.task && alert.end && alert.status) {
+              text = `${alert.task}: `;
+              const today = new Date();
+              const endDate = new Date(alert.end);
+              const diffDays = Math.ceil((endDate - today) / (1000 * 60 * 60 * 24));
+              if (diffDays < 0) {
+                text += 'Đã trễ hạn';
+              } else if (diffDays <= 5) {
+                text += `Sắp đến hạn (trước ${diffDays} ngày)`;
+              }
+              text += ` (End: ${alert.end}, Status: ${alert.status || 'N/A'})`;
+            } else {
+              text = alert; // Fallback nếu dữ liệu không đúng định dạng
+            }
+            p.textContent = text;
+            if (text.includes('Đã trễ hạn')) {
+              p.classList.add('bg-red-300', 'p-2', 'rounded');
+            } else if (text.includes('Sắp đến hạn')) {
+              p.classList.add('bg-yellow-300', 'p-2', 'rounded');
+            } else {
+              p.classList.add('p-2');
+            }
+            alertContent.appendChild(p);
+          });
+        }
+        document.getElementById('alertModal').classList.remove('hidden');
+      }).withFailureHandler(err => {
+        showLoading(false);
+        showNotification('Error checking alerts: ' + err.message, 'error');
+      }).checkAlerts(index);
+    }
+
+    document.getElementById('closeAlertModal').addEventListener('click', () => {
+      document.getElementById('alertModal').classList.add('hidden');
+    });
+  </script>
+  <script>
+
+document.querySelectorAll(".uppercase-input").forEach(input => {
+  input.addEventListener("input", function () {
+    this.value = this.value.toUpperCase();
+  });
+});
+</script>
+
+</body>
+</html>
